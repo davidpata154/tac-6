@@ -32,7 +32,13 @@
         <section id="results-section" class="results-section" style="display: none;">
           <div class="results-header">
             <h2>Query Results</h2>
-            <button id="toggle-results" class="toggle-button">Hide</button>
+            <div class="results-header-buttons">
+              <button id="download-results" class="download-results-button" title="Download results as CSV">
+                <span class="download-icon">&#11015;</span>
+                <span>Download</span>
+              </button>
+              <button id="toggle-results" class="toggle-button">Hide</button>
+            </div>
           </div>
           <div id="sql-display" class="sql-display"></div>
           <div id="results-container" class="results-container"></div>
