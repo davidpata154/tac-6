@@ -39,15 +39,18 @@ review_image_dir: `<absolute path to codebase>/agents/<adw_id>/<agent_name>/revi
     - `skippable` - the issue is non-blocker for the work to be released but is still a problem
     - `tech_debt` - the issue is non-blocker for the work to be released but will create technical debt that should be addressed in the future
     - `blocker` - the issue is a blocker for the work to be released and should be addressed immediately. It will harm the user experience or will not function as expected.
-- IMPORTANT: Return ONLY the JSON array with test results
-  - IMPORTANT: Output your result in JSON format based on the `Report` section below.
-  - IMPORTANT: Do not include any additional text, explanations, or markdown formatting
-  - We'll immediately run JSON.parse() on the output, so make sure it's valid JSON
+- CRITICAL: Your FINAL output must be ONLY the JSON object with review results
+  - CRITICAL: Output your result in JSON format based on the `Report` section below
+  - CRITICAL: Do NOT include any text from prepare_app execution, additional explanations, or markdown formatting
+  - CRITICAL: The output should be ONLY raw JSON starting with { and ending with }
+  - We'll immediately run JSON.parse() on your output, so make sure it's valid JSON without any surrounding text
 - Ultra think as you work through the review process. Focus on the critical functionality paths and the user experience. Don't report issues if they are not critical to the feature.
 
 ## Setup
 
 IMPORTANT: Read and **Execute** `.claude/commands/prepare_app.md` now to prepare the application for the review.
+
+CRITICAL: After completing the setup above, continue with the review process and ONLY return the JSON output as specified in the Report section below. Do NOT return the prepare_app output in your final response.
 
 ## Report
 
