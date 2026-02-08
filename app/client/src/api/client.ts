@@ -80,5 +80,48 @@ export const api = {
   // Generate random query
   async generateRandomQuery(): Promise<RandomQueryResponse> {
     return apiRequest<RandomQueryResponse>('/generate-random-query');
+  },
+
+  // Export table as CSV
+  exportTable(tableName: string): void {
+    const url = `${API_BASE_URL}/export/table/${encodeURIComponent(tableName)}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${tableName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
+
+  // Export query results as CSV
+  async exportResults(columns: string[], results: Record<string, any>[]): Promise<void> {
+    const url = `${API_BASE_URL}/export/results`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ columns, results })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'query_results.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Export results failed:', error);
+      throw error;
+    }
   }
 };
