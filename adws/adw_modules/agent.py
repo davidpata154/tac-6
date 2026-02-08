@@ -20,7 +20,9 @@ from .data_types import (
 load_dotenv()
 
 # Get Claude Code CLI path from environment
-CLAUDE_PATH = os.getenv("CLAUDE_CODE_PATH", "claude")
+# Support paths with spaces (e.g., "node /path/to/cli.js") by splitting into a list
+_CLAUDE_PATH_STR = os.getenv("CLAUDE_CODE_PATH", "claude")
+CLAUDE_PATH = _CLAUDE_PATH_STR.split() if " " in _CLAUDE_PATH_STR else [_CLAUDE_PATH_STR]
 
 # Model selection mapping for slash commands
 # Maps slash command to preferred model
@@ -69,14 +71,14 @@ def check_claude_installed() -> Optional[str]:
     """Check if Claude Code CLI is installed. Return error message if not."""
     try:
         result = subprocess.run(
-            [CLAUDE_PATH, "--version"], capture_output=True, text=True
+            CLAUDE_PATH + ["--version"], capture_output=True, text=True
         )
         if result.returncode != 0:
             return (
-                f"Error: Claude Code CLI is not installed. Expected at: {CLAUDE_PATH}"
+                f"Error: Claude Code CLI is not installed. Expected at: {' '.join(CLAUDE_PATH)}"
             )
     except FileNotFoundError:
-        return f"Error: Claude Code CLI is not installed. Expected at: {CLAUDE_PATH}"
+        return f"Error: Claude Code CLI is not installed. Expected at: {' '.join(CLAUDE_PATH)}"
     return None
 
 
@@ -189,7 +191,7 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
         os.makedirs(output_dir, exist_ok=True)
 
     # Build command - always use stream-json format and verbose
-    cmd = [CLAUDE_PATH, "-p", request.prompt]
+    cmd = CLAUDE_PATH + ["-p", request.prompt]
     cmd.extend(["--model", request.model])
     cmd.extend(["--output-format", "stream-json"])
     cmd.append("--verbose")
