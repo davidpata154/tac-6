@@ -113,6 +113,7 @@ def run_review(
         # Return a failed review result
         return ReviewResult(
             success=False,
+            review_summary="Review execution failed - unable to complete review process.",
             review_issues=[
                 ReviewIssue(
                     review_issue_number=1,
@@ -132,6 +133,7 @@ def run_review(
         logger.error(f"Error parsing review result: {e}")
         return ReviewResult(
             success=False,
+            review_summary="Failed to parse review results - review agent returned invalid format.",
             review_issues=[
                 ReviewIssue(
                     review_issue_number=1,
