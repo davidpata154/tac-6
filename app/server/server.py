@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from datetime import datetime
 import os
 import sqlite3
@@ -7,6 +8,8 @@ import traceback
 from dotenv import load_dotenv
 import logging
 import sys
+import csv
+import io
 
 from core.data_models import (
     FileUploadResponse,
@@ -18,7 +21,8 @@ from core.data_models import (
     HealthCheckResponse,
     TableSchema,
     ColumnInfo,
-    RandomQueryResponse
+    RandomQueryResponse,
+    ExportResultsRequest
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
@@ -303,6 +307,99 @@ async def delete_table(table_name: str):
         logger.error(f"[ERROR] Table deletion failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error deleting table: {str(e)}")
+
+@app.get("/api/export/table/{table_name}")
+async def export_table(table_name: str):
+    """Export a table as a CSV file"""
+    try:
+        # Validate table name using security module
+        try:
+            validate_identifier(table_name, "table")
+        except SQLSecurityError as e:
+            raise HTTPException(400, str(e))
+
+        conn = sqlite3.connect("db/database.db")
+
+        # Check if table exists using secure method
+        if not check_table_exists(conn, table_name):
+            conn.close()
+            raise HTTPException(404, f"Table '{table_name}' not found")
+
+        # Get all data from the table using safe query execution
+        cursor = execute_query_safely(
+            conn,
+            "SELECT * FROM {table}",
+            identifier_params={'table': table_name}
+        )
+
+        # Get column names from cursor description
+        columns = [description[0] for description in cursor.description] if cursor.description else []
+
+        # Fetch all results
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write header
+        if columns:
+            writer.writerow(columns)
+
+        # Write data rows
+        for row in rows:
+            writer.writerow(row)
+
+        output.seek(0)
+
+        logger.info(f"[SUCCESS] Table exported: {table_name}, rows: {len(rows)}")
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f'attachment; filename="{table_name}.csv"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Table export failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error exporting table: {str(e)}")
+
+@app.post("/api/export/results")
+async def export_results(request: ExportResultsRequest):
+    """Export query results as a CSV file"""
+    try:
+        # Convert to CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write header
+        if request.columns:
+            writer.writerow(request.columns)
+
+        # Write data rows
+        for row in request.results:
+            writer.writerow([row.get(col) for col in request.columns])
+
+        output.seek(0)
+
+        logger.info(f"[SUCCESS] Results exported: {len(request.results)} rows")
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="query_results.csv"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"[ERROR] Results export failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error exporting results: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

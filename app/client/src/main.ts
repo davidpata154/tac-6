@@ -180,15 +180,22 @@ async function loadDatabaseSchema() {
   }
 }
 
+// Store current query results for export
+let currentQueryResponse: QueryResponse | null = null;
+
 // Display query results
 function displayResults(response: QueryResponse, query: string) {
-  
+  // Store response for export functionality
+  currentQueryResponse = response;
+
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   const sqlDisplay = document.getElementById('sql-display') as HTMLDivElement;
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
-  
+  const resultsHeader = document.querySelector('.results-header') as HTMLElement;
+  const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
+
   resultsSection.style.display = 'block';
-  
+
   // Display natural language query and SQL
   sqlDisplay.innerHTML = `
     <div class="query-display">
@@ -198,7 +205,7 @@ function displayResults(response: QueryResponse, query: string) {
       <strong>SQL:</strong> <code>${response.sql}</code>
     </div>
   `;
-  
+
   // Display results table
   if (response.error) {
     resultsContainer.innerHTML = `<div class="error-message">${response.error}</div>`;
@@ -209,13 +216,53 @@ function displayResults(response: QueryResponse, query: string) {
     resultsContainer.innerHTML = '';
     resultsContainer.appendChild(table);
   }
-  
-  // Initialize toggle button
-  const toggleButton = document.getElementById('toggle-results') as HTMLButtonElement;
-  toggleButton.addEventListener('click', () => {
+
+  // Setup results actions container (download button + toggle button)
+  let resultsActions = resultsHeader.querySelector('.results-actions') as HTMLElement;
+  if (!resultsActions) {
+    resultsActions = document.createElement('div');
+    resultsActions.className = 'results-actions';
+
+    // Move existing toggle button into actions container
+    if (toggleButton.parentElement === resultsHeader) {
+      resultsHeader.removeChild(toggleButton);
+    }
+    resultsActions.appendChild(toggleButton);
+    resultsHeader.appendChild(resultsActions);
+  }
+
+  // Remove existing download button if any
+  const existingDownloadButton = resultsActions.querySelector('.download-results-button');
+  if (existingDownloadButton) {
+    existingDownloadButton.remove();
+  }
+
+  // Add download button if there are results and no error
+  if (!response.error && response.results.length > 0) {
+    const downloadResultsButton = document.createElement('button');
+    downloadResultsButton.className = 'download-results-button';
+    downloadResultsButton.innerHTML = '↓ Download CSV';
+    downloadResultsButton.title = 'Download results as CSV';
+    downloadResultsButton.onclick = async () => {
+      if (currentQueryResponse && !currentQueryResponse.error) {
+        try {
+          await api.exportResults(currentQueryResponse.columns, currentQueryResponse.results);
+        } catch (error) {
+          displayError(error instanceof Error ? error.message : 'Export failed');
+        }
+      }
+    };
+    // Insert download button before toggle button
+    resultsActions.insertBefore(downloadResultsButton, toggleButton);
+  }
+
+  // Initialize toggle button behavior
+  toggleButton.textContent = 'Hide';
+  resultsContainer.style.display = 'block';
+  toggleButton.onclick = () => {
     resultsContainer.style.display = resultsContainer.style.display === 'none' ? 'block' : 'none';
     toggleButton.textContent = resultsContainer.style.display === 'none' ? 'Show' : 'Hide';
-  });
+  };
 }
 
 // Create results table
@@ -285,14 +332,27 @@ function displayTables(tables: TableSchema[]) {
     tableLeft.appendChild(tableName);
     tableLeft.appendChild(tableInfo);
     
+    // Actions container for download and remove buttons
+    const tableActions = document.createElement('div');
+    tableActions.className = 'table-actions';
+
+    const downloadButton = document.createElement('button');
+    downloadButton.className = 'download-table-button';
+    downloadButton.innerHTML = '↓';
+    downloadButton.title = 'Download table as CSV';
+    downloadButton.onclick = () => api.exportTable(table.name);
+
     const removeButton = document.createElement('button');
     removeButton.className = 'remove-table-button';
     removeButton.innerHTML = '&times;';
     removeButton.title = 'Remove table';
     removeButton.onclick = () => removeTable(table.name);
-    
+
+    tableActions.appendChild(downloadButton);
+    tableActions.appendChild(removeButton);
+
     tableHeader.appendChild(tableLeft);
-    tableHeader.appendChild(removeButton);
+    tableHeader.appendChild(tableActions);
     
     // Columns section
     const tableColumns = document.createElement('div');
