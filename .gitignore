@@ -62,3 +62,6 @@ screenshots/
 
 # Playwright video recordings
 videos/
+
+# Playwright MCP output
+.playwright-mcp/
